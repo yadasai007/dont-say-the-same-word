@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Don't Say the Same Word</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@600;700&display=swap">
+<style>
+  /* Layout: one narrow column of "cue cards", like a game-show host's stack, passed around a single device. */
+  :root {
+    --bg: #e9edf5; --card: #ffffff; --ink: #141826; --muted: #5d6479;
+    --accent: #3445c9; --accent-ink: #ffffff; --chip: #eef1f8; --line: #d9deea;
+    --marker: #ffd23f; --marker-ink: #141826;
+    --same: #c8323c; --safe: #23875a;
+    --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+    --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10131d; --card: #1a1f2d; --ink: #eef0f7; --muted: #9aa1b6;
+      --accent: #7f8cff; --accent-ink: #10131d; --chip: #242a3b; --line: #2d3446;
+      --marker: #ffd23f; --marker-ink: #141826;
+      --same: #ff6b72; --safe: #4fd08f; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10131d; --card: #1a1f2d; --ink: #eef0f7; --muted: #9aa1b6;
+    --accent: #7f8cff; --accent-ink: #10131d; --chip: #242a3b; --line: #2d3446;
+    --marker: #ffd23f; --marker-ink: #141826;
+    --same: #ff6b72; --safe: #4fd08f; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 var(--body);
+    padding-inline: 16px; padding-block: 28px 48px;
+  }
+  .app { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .wordmark {
+    font-family: var(--display); font-weight: 800; font-size: 2rem; line-height: 1.05;
+    letter-spacing: -0.03em; margin: 0; text-wrap: balance;
+  }
+  .wordmark s { text-decoration-color: var(--same); text-decoration-thickness: 4px; }
+  h2 { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0; text-wrap: balance; }
+  .sub { color: var(--muted); margin: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .eyebrow {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  }
+  label { font-weight: 600; font-size: 0.95rem; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  input[type=text], input[type=password] {
+    width: 100%; min-width: 0; padding: 12px 14px; font: inherit; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+  }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button {
+    font: inherit; font-weight: 700; cursor: pointer; border: none; border-radius: 10px;
+    padding: 12px 18px; background: var(--accent); color: var(--accent-ink);
+  }
+  button.secondary { background: var(--chip); color: var(--ink); }
+  button.same { background: var(--same); color: #fff; }
+  button.safe { background: var(--safe); color: #fff; }
+  button.link { background: none; color: var(--muted); padding: 4px 6px; font-weight: 600; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > input { flex: 1; }
+  .row > .grow { flex: 1; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .seg button { background: var(--chip); color: var(--ink); display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; }
+  .seg button small { font-weight: 500; color: var(--muted); font-size: 0.8rem; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .seg button.on small { color: inherit; opacity: 0.8; }
+  .players { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .players li {
+    display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px;
+    border-radius: 999px; background: var(--chip); font-weight: 600;
+  }
+  .hint { color: var(--muted); font-size: 0.88rem; margin: 0; }
+  .err { color: var(--same); font-size: 0.9rem; margin: 0; min-height: 1.2em; }
+  .big {
+    font-family: var(--display); font-weight: 800; font-size: 2.1rem; line-height: 1.1;
+    text-align: center; margin: 0; word-break: break-word; text-wrap: balance;
+  }
+  .marker {
+    background: var(--marker); color: var(--marker-ink); padding: 0 0.25em; border-radius: 4px;
+    box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  }
+  .center { text-align: center; align-items: center; }
+  .pill {
+    align-self: center; display: inline-block; padding: 4px 12px; border-radius: 999px;
+    background: var(--card); border: 1px solid var(--line);
+    font-size: 0.82rem; font-weight: 700; color: var(--muted);
+  }
+  .timer { font-family: var(--mono); font-size: 3.2rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; line-height: 1; }
+  .timer.low { color: var(--same); }
+  .bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); transition: width 0.25s linear; }
+  .score-table { width: 100%; border-collapse: collapse; }
+  .score-table td { padding: 10px 4px; border-bottom: 1px solid var(--line); }
+  .score-table tr:last-child td { border-bottom: none; }
+  .score-table td:last-child { text-align: right; font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .out { color: var(--muted); text-decoration: line-through; }
+  .delta { color: var(--same); margin-left: 6px; font-size: 0.85rem; }
+  .tag { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+  .reveal-item {
+    padding: 14px; border-radius: 12px; background: var(--chip);
+    display: flex; flex-direction: column; gap: 6px; border-left: 5px solid var(--line);
+  }
+  .reveal-item.is-same { border-left-color: var(--same); }
+  .reveal-item.is-diff { border-left-color: var(--safe); }
+  .reveal-item .who { font-weight: 700; color: var(--muted); font-size: 0.9rem; }
+  .reveal-item .ans { font-family: var(--display); font-size: 1.5rem; font-weight: 800; word-break: break-word; line-height: 1.15; }
+  .verdict { font-weight: 700; }
+  .verdict.same { color: var(--same); }
+  .verdict.diff { color: var(--safe); }
+  .quip { font-style: italic; color: var(--muted); margin: 0; }
+  .match-hint { font-size: 0.85rem; color: var(--same); font-weight: 700; margin: 0; }
+  .host {
+    background: var(--accent); color: var(--accent-ink); border-color: transparent;
+  }
+  .host .eyebrow, .host .sub { color: inherit; opacity: 0.8; }
+  .host .speech { font-family: var(--display); font-weight: 600; font-size: 1.45rem; line-height: 1.25; margin: 0; text-wrap: balance; }
+  .rules { margin: 0; padding-left: 1.1em; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  @media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+<style>
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .code {
+    font-family: var(--mono); font-weight: 700; font-size: 2.6rem; letter-spacing: 0.18em;
+    text-align: center; margin: 0; line-height: 1.1;
+  }
+  .code-chip { font-family: var(--mono); font-weight: 700; letter-spacing: 0.12em; }
+  .code-input { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.3em; text-align: center; font-size: 1.3rem; }
+  .roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .roster li {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--chip);
+  }
+  .roster .name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+  .roster .status { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+  .roster .status.done { color: var(--safe); font-weight: 700; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--safe); flex: none; }
+  .dot.off { background: var(--line); }
+  .banner {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 10; text-align: center;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
+    background: var(--marker); color: var(--marker-ink); font-weight: 700; font-size: 0.9rem;
+  }
+  .notice { background: var(--chip); border-radius: 10px; padding: 10px 12px; color: var(--ink); font-size: 0.92rem; margin: 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600;
+    max-width: calc(100% - 32px); z-index: 20; text-align: center;
+  }
+  .secret { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.85rem; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+</style>
+</head>
+<body>
+<div class="banner" id="banner" hidden>Reconnecting…</div>
+<div class="app" id="app"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const SESSION_KEY = 'dssw-session';
+const NAME_KEY = 'dssw-name';
+const socket = io();
+
+let S = null;              // latest state from the server
+let clockOffset = 0;       // serverNow - Date.now()
+let timerId = null;
+let lastScreen = '';
+const ui = { joinCode: new URLSearchParams(location.search).get('room') || '', busy: false };
+
+const app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// The name is remembered on the device; the room session belongs to this tab (it survives a refresh).
+const makeStore = area => ({
+  get(k, d) { try { return JSON.parse(window[area].getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { window[area].setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { window[area].removeItem(k); } catch {} },
+});
+const store = makeStore('localStorage');
+const session = makeStore('sessionStorage');
+{
+  const s = session.get(SESSION_KEY, null);
+  if (s && ui.joinCode && ui.joinCode.toUpperCase() !== s.code) session.del(SESSION_KEY);
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+function send(event, payload) {
+  return new Promise(resolve => {
+    socket.timeout(8000).emit(event, payload || {}, (err, res) => {
+      if (err) { toast("The server didn't answer. Check your connection."); return resolve({ ok: false }); }
+      if (!res.ok && res.error) toast(res.error);
+      resolve(res);
+    });
+  });
+}
+
+// ---------- connection ----------
+socket.on('connect', async () => {
+  document.getElementById('banner').hidden = true;
+  const sess = session.get(SESSION_KEY, null);
+  if (sess) {
+    const res = await new Promise(r => socket.emit('rejoin', sess, r));
+    if (!res || !res.ok) { session.del(SESSION_KEY); S = null; render(); }
+  } else render();
+});
+socket.on('disconnect', () => { document.getElementById('banner').hidden = false; });
+socket.on('connect_error', () => { document.getElementById('banner').hidden = false; });
+socket.on('state', state => {
+  S = state;
+  clockOffset = state.serverNow - Date.now();
+  render();
+});
+
+// ---------- helpers ----------
+const me = () => S.players.find(p => p.id === S.me);
+const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || 'Someone';
+const isOwner = () => S.me === S.ownerId;
+const isCPU = () => S.settings.mode === 'computer';
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+function screenName() {
+  if (!S) return 'home';
+  return S.phase;
+}
+
+function render() {
+  const screen = screenName();
+  // Keep typed text when the same screen re-renders because someone else did something.
+  const keep = {};
+  if (screen === lastScreen) app.querySelectorAll('input[id]').forEach(el => { keep[el.id] = { v: el.value, f: el === document.activeElement }; });
+  app.innerHTML = screens[screen]();
+  for (const [idName, k] of Object.entries(keep)) {
+    const el = document.getElementById(idName);
+    if (el) { el.value = k.v; if (k.f) el.focus(); }
+  }
+  if (screen !== lastScreen) { const f = app.querySelector('[autofocus]'); if (f) f.focus(); window.scrollTo(0, 0); }
+  lastScreen = screen;
+  clearInterval(timerId);
+  if (S && S.phase === 'answering') { tick(); timerId = setInterval(tick, 250); }
+}
+
+function tick() {
+  const t = document.getElementById('timer');
+  if (!t || !S) return;
+  const total = S.limits.turnSeconds;
+  const remaining = Math.max(0, Math.ceil((S.deadline - (Date.now() + clockOffset)) / 1000));
+  t.textContent = remaining;
+  t.classList.toggle('low', remaining <= 10);
+  const b = document.getElementById('bar');
+  if (b) b.style.width = (remaining / total * 100) + '%';
+  if (remaining <= 0) {
+    const ans = document.getElementById('ans');
+    if (ans && ans.value.trim() && !ui.busy) submitAnswer();
+  }
+}
+
+function topbar() {
+  return `<div class="topbar">
+    <span class="pill">Room <span class="code-chip">${esc(S.code)}</span>${S.round ? ` · Round ${S.round}` : ''}</span>
+    <button class="link" onclick="leaveRoom()">Leave</button>
+  </div>
+  ${S.notice ? `<p class="notice">${esc(S.notice)}</p>` : ''}`;
+}
+
+function scoreCard(showDelta) {
+  const rows = S.players.slice().sort((a, b) => b.score - a.score).map(p => {
+    const d = showDelta ? S.lastDeltas[p.id] : 0;
+    const tags = [
+      p.id === S.me ? '<span class="tag">you</span>' : '',
+      p.id === S.hostId && !['lobby', 'gameOver'].includes(S.phase) ? '<span class="tag">host</span>' : '',
+      !p.connected ? '<span class="tag" style="color:var(--muted)">offline</span>' : '',
+    ].join('');
+    return `<tr><td class="${p.score <= 0 ? 'out' : ''}">${esc(p.name)}${tags}</td>
+      <td>${p.score}${d ? `<span class="delta">${d}</span>` : ''}</td></tr>`;
+  }).join('');
+  return `<div class="card"><h2>Scores</h2><table class="score-table">${rows}</table></div>`;
+}
+
+function ownerControls(extra) {
+  if (!isOwner()) return '';
+  return `<div class="stack">${extra || ''}
+    <button class="link" onclick="send('skipRound')">Skip this round</button>
+    <button class="link" onclick="send('endGame')">End game</button></div>`;
+}
+
+// ---------- screens ----------
+const screens = {
+  home() {
+    const name = store.get(NAME_KEY, '');
+    return `
+      <h1 class="wordmark">Don't Say the <s>Same</s> Word</h1>
+      <p class="sub">The host picks a category and a secret word. Everyone else tries <b>not</b> to say it. Play together on your own phones.</p>
+      <div class="card">
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" type="text" maxlength="20" placeholder="Your name" value="${esc(name)}" ${name ? '' : 'autofocus'}>
+        </div>
+        <button onclick="createRoom()" ${ui.busy ? 'disabled' : ''}>Create a room</button>
+        <div class="divider">or join a friend</div>
+        <div class="field">
+          <label for="code">Room code</label>
+          <div class="row">
+            <input id="code" class="code-input" type="text" maxlength="4" placeholder="ABCD" autocomplete="off"
+                   value="${esc(ui.joinCode)}" ${name && !ui.joinCode ? 'autofocus' : ''}
+                   oninput="this.value=this.value.toUpperCase().replace(/[^A-Z]/g,'')"
+                   onkeydown="if(event.key==='Enter')joinRoom()">
+            <button class="secondary" onclick="joinRoom()" ${ui.busy ? 'disabled' : ''}>Join</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>How it works</h2>
+        <ul class="rules">
+          <li>One person creates a room and shares the 4-letter code. Up to 8 players join on their own phones.</li>
+          <li>Everyone starts with 5 or 10 points.</li>
+          <li>The host (a player or the computer) secretly picks a category and a word.</li>
+          <li>Everyone answers at the same time and has 60 seconds.</li>
+          <li>Same word, or same meaning (purple / violet), costs <b>1 point</b>. A blank answer costs 1 point too.</li>
+          <li>Hit 0 and you're out. The highest score wins.</li>
+        </ul>
+      </div>`;
+  },
+
+  lobby() {
+    const min = S.limits.minPlayers[S.settings.mode];
+    const link = `${location.origin}/?room=${S.code}`;
+    const roster = S.players.map(p => `
+      <li><span class="dot ${p.connected ? '' : 'off'}"></span>
+        <span class="name">${esc(p.name)}${p.id === S.me ? '<span class="tag">you</span>' : ''}</span>
+        <span class="status">${p.id === S.ownerId ? 'Room owner' : p.connected ? '' : 'Offline'}</span></li>`).join('');
+    const settings = isOwner() ? `
+      <div class="field">
+        <label>Who hosts?</label>
+        <div class="seg">
+          <button class="${!isCPU() ? 'on' : ''}" onclick="send('settings',{mode:'human'})">Human host<small>Host rotates each round</small></button>
+          <button class="${isCPU() ? 'on' : ''}" onclick="send('settings',{mode:'computer'})">Computer host<small>Everyone plays</small></button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Starting score</label>
+        <div class="seg">
+          <button class="${S.settings.startScore === 5 ? 'on' : ''}" onclick="send('settings',{startScore:5})">5 points</button>
+          <button class="${S.settings.startScore === 10 ? 'on' : ''}" onclick="send('settings',{startScore:10})">10 points</button>
+        </div>
+      </div>
+      <button onclick="send('start')" ${S.players.length < min ? 'disabled' : ''}>
+        ${S.players.length < min ? `Waiting for ${plural(min - S.players.length, 'more player')}` : 'Start game'}</button>`
+      : `<p class="sub">${isCPU() ? 'Computer host' : 'Human host'} · Start at ${S.settings.startScore} points</p>
+         <p class="hint">Waiting for ${esc(nameOf(S.ownerId))} to start the game.</p>`;
+    return `
+      ${topbar()}
+      <div class="card center">
+        <span class="eyebrow">Room code</span>
+        <p class="code">${esc(S.code)}</p>
+        <p class="hint">Friends open this site and enter the code, or use the link.</p>
+        <div class="row">
+          <button class="secondary" onclick="copyLink('${link}')">Copy invite link</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Players · ${S.players.length}/${S.limits.maxPlayers}</h2>
+        <ul class="roster">${roster}</ul>
+        <p class="hint">${isCPU() ? `1–${S.limits.maxPlayers} players.` : `${min}–${S.limits.maxPlayers} players, host included.`}</p>
+      </div>
+      <div class="card">${settings}</div>
+      <p class="hint" style="text-align:center">Question pool: ${S.pool.questions.toLocaleString()} questions · ${S.pool.answers.toLocaleString()} answers</p>`;
+  },
+
+  hostPicking() {
+    const amHost = S.me === S.hostId;
+    if (amHost) return `
+      ${topbar()}
+      <div class="card">
+        <span class="eyebrow">You're the host</span>
+        <h2>Pick a category and a secret word</h2>
+        <div class="field">
+          <label for="cat">Category or question (everyone sees this)</label>
+          <input id="cat" type="text" maxlength="60" placeholder="Name a color" autofocus>
+        </div>
+        <div class="field">
+          <label for="word">Your secret word</label>
+          <div class="row">
+            <input id="word" type="password" maxlength="40" placeholder="Purple" onkeydown="if(event.key==='Enter')hostSubmit()">
+            <button class="secondary" onclick="toggleVis('word', this)">Show</button>
+          </div>
+        </div>
+        <button onclick="hostSubmit()" ${ui.busy ? 'disabled' : ''}>Lock it in</button>
+      </div>
+      ${ownerControls()}
+      ${scoreCard()}`;
+    const host = S.players.find(p => p.id === S.hostId);
+    return `
+      ${topbar()}
+      <div class="card center">
+        <span class="eyebrow">Round ${S.round}</span>
+        <p class="big">${esc(nameOf(S.hostId))}</p>
+        <p class="sub">is choosing a category and a secret word…</p>
+        ${host && !host.connected ? '<p class="hint">The host is offline. The room owner can skip this round.</p>' : ''}
+      </div>
+      ${ownerControls()}
+      ${scoreCard()}`;
+  },
+
+  answering() {
+    const m = me();
+    const answering = S.players.filter(p => p.answering);
+    const doneCount = answering.filter(p => p.submitted).length;
+    const roster = answering.map(p => `
+      <li><span class="dot ${p.connected ? '' : 'off'}"></span><span class="name">${esc(p.name)}${p.id === S.me ? '<span class="tag">you</span>' : ''}</span>
+        <span class="status ${p.submitted ? 'done' : ''}">${p.submitted ? 'Locked in' : 'Thinking…'}</span></li>`).join('');
+    let mine;
+    if (m && m.answering && S.myAnswer === null) {
+      mine = `
+        <div class="field">
+          <label for="ans">Your word (don't match the host)</label>
+          <div class="row">
+            <input id="ans" type="password" maxlength="40" autofocus autocomplete="off" onkeydown="if(event.key==='Enter')submitAnswer()">
+            <button class="secondary" onclick="toggleVis('ans', this)">Show</button>
+          </div>
+        </div>
+        <button onclick="submitAnswer()" ${ui.busy ? 'disabled' : ''}>Lock in my answer</button>`;
+    } else if (m && m.answering) {
+      mine = `<p class="sub center">Your answer <b>${esc(S.myAnswer || '(blank)')}</b> is locked in.</p>`;
+    } else if (S.word) {
+      mine = `<div class="secret"><span class="eyebrow">Your secret word</span><span class="marker" style="font-weight:800;font-size:1.2rem">${esc(S.word)}</span></div>
+              <p class="hint center">Watch everyone answer. You'll judge them next.</p>`;
+    } else {
+      mine = `<p class="hint center">You're out this game. Watch the others play.</p>`;
+    }
+    const reroll = isOwner() && isCPU() && doneCount === 0
+      ? `<button class="secondary" onclick="send('newQuestion')">Ask a different question</button>` : '';
+    return `
+      ${topbar()}
+      <div class="card ${isCPU() ? 'host' : ''}">
+        <span class="eyebrow" style="text-align:center">${isCPU() ? 'The computer asks' : `${esc(nameOf(S.hostId))} asks`}</span>
+        <p class="big">${esc(S.category)}</p>
+        <div class="timer" id="timer">${S.limits.turnSeconds}</div>
+        <div class="bar"><div id="bar" style="width:100%"></div></div>
+      </div>
+      <div class="card">${mine}</div>
+      <div class="card">
+        <h2>Answers in · ${doneCount}/${answering.length}</h2>
+        <ul class="roster">${roster}</ul>
+      </div>
+      ${ownerControls(reroll)}`;
+  },
+
+  judging() {
+    const judge = S.canJudge;
+    const items = S.answers.map(a => {
+      const blank = !a.text.trim();
+      const d = a.verdict;
+      let body;
+      if (blank) body = `<span class="verdict same">No answer, −1 point</span>`;
+      else if (d) body = `<div class="row"><span class="verdict ${d} grow">${d === 'same' ? 'Same word, −1 point' : 'Different, safe'}</span>
+          ${judge ? `<button class="link" onclick="send('decide',{playerId:'${a.id}',verdict:null})">Change</button>` : ''}</div>`;
+      else if (judge) body = `<div class="row">
+          <button class="same grow" onclick="send('decide',{playerId:'${a.id}',verdict:'same'})">Same (−1)</button>
+          <button class="safe grow" onclick="send('decide',{playerId:'${a.id}',verdict:'diff'})">Different</button></div>`;
+      else body = `<span class="hint">Waiting for the host to judge…</span>`;
+      const cls = blank || d === 'same' ? 'is-same' : d === 'diff' ? 'is-diff' : '';
+      return `<div class="reveal-item ${cls}">
+        <span class="who">${esc(nameOf(a.id))}${a.id === S.me ? ' (you)' : ''}</span>
+        <span class="ans">${blank ? '<span style="color:var(--muted)">(blank)</span>' : esc(a.text)}</span>${body}</div>`;
+    }).join('');
+    const pending = S.answers.filter(a => a.text.trim() && !a.verdict).length;
+    const who = isCPU() ? 'The computer' : esc(nameOf(S.hostId));
+    const hint = isCPU()
+      ? (judge ? "The computer only knows the words in its list. If an answer means the same thing, tap Change and mark it Same." : `The computer has judged. ${esc(nameOf(S.ownerId))} can change a verdict, then apply scores.`)
+      : (judge ? 'Mark answers that mean the same thing as your word (purple / violet) as Same.' : `${who} is judging the answers.`);
+    return `
+      ${topbar()}
+      <div class="card center">
+        <span class="eyebrow">${who}'s word was</span>
+        <p class="big"><span class="marker">${esc(S.word)}</span></p>
+        <p class="sub">${esc(S.category)}</p>
+        ${S.aliases.length ? `<p class="hint">Also counts as the same: ${S.aliases.map(esc).join(', ')}</p>` : ''}
+        ${S.otherAnswers.length ? `<p class="hint">It could also have picked: ${S.otherAnswers.map(esc).join(', ')}</p>` : ''}
+        <p class="hint">${hint}</p>
+      </div>
+      <div class="card">
+        ${items || '<p class="hint">Nobody answered this round.</p>'}
+        ${judge ? `<button onclick="send('applyScores')" ${pending ? 'disabled' : ''}>${pending ? `Judge ${plural(pending, 'more answer')}` : 'Apply scores'}</button>` : ''}
+      </div>
+      ${ownerControls()}`;
+  },
+
+  results() {
+    return `
+      ${topbar()}
+      ${S.lastLearned ? `<p class="hint" style="text-align:center">${esc(S.lastLearned)}</p>` : ''}
+      ${scoreCard(true)}
+      ${isOwner()
+        ? `<button onclick="send('nextRound')">Next round</button>
+           <button class="secondary" onclick="send('endGame')">End game</button>`
+        : `<p class="hint" style="text-align:center">Waiting for ${esc(nameOf(S.ownerId))} to start the next round.</p>`}`;
+  },
+
+  gameOver() {
+    const best = Math.max(...S.players.map(p => p.score));
+    const winners = S.players.filter(p => p.score === best);
+    return `
+      ${topbar()}
+      <div class="card center">
+        <span class="eyebrow">${best === 0 ? 'Game over' : winners.length > 1 ? 'Winners' : 'Winner'}</span>
+        <p class="big">${best === 0 ? 'The host wins this one' : winners.map(w => esc(w.name)).join(' & ')}</p>
+        <p class="hint">${plural(best, 'point')} left after ${plural(S.round, 'round')}</p>
+      </div>
+      ${scoreCard(true)}
+      ${isOwner()
+        ? `<button onclick="send('backToLobby')">Back to the lobby</button>`
+        : `<p class="hint" style="text-align:center">Waiting for ${esc(nameOf(S.ownerId))} to set up the next game.</p>`}
+      <button class="secondary" onclick="leaveRoom()">Leave room</button>`;
+  },
+};
+
+// ---------- actions ----------
+function readName() {
+  const name = document.getElementById('name').value.trim();
+  if (!name) { toast('Enter your name first.'); document.getElementById('name').focus(); return null; }
+  store.set(NAME_KEY, name);
+  return name;
+}
+
+async function enter(event, payload) {
+  ui.busy = true;
+  const res = await send(event, payload);
+  ui.busy = false;
+  if (res.ok) {
+    session.set(SESSION_KEY, { code: res.code, token: res.token });
+    history.replaceState(null, '', location.pathname);
+  } else render();
+}
+
+function createRoom() {
+  const name = readName();
+  if (name) enter('create', { name });
+}
+
+function joinRoom() {
+  const name = readName();
+  if (!name) return;
+  const code = document.getElementById('code').value.trim().toUpperCase();
+  if (code.length !== 4) return toast('Enter the 4-letter room code.');
+  ui.joinCode = code;
+  enter('join', { code, name });
+}
+
+async function leaveRoom() {
+  await send('leave');
+  session.del(SESSION_KEY);
+  S = null;
+  ui.joinCode = '';
+  render();
+}
+
+async function hostSubmit() {
+  const category = document.getElementById('cat').value.trim();
+  const word = document.getElementById('word').value.trim();
+  if (!category) return toast('Enter a category.');
+  if (!word) return toast('Enter your secret word.');
+  ui.busy = true;
+  await send('hostSubmit', { category, word });
+  ui.busy = false;
+}
+
+async function submitAnswer() {
+  const el = document.getElementById('ans');
+  if (!el) return;
+  ui.busy = true;
+  await send('answer', { text: el.value });
+  ui.busy = false;
+}
+
+function toggleVis(idName, btn) {
+  const el = document.getElementById(idName);
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btn.textContent = show ? 'Hide' : 'Show';
+  el.focus();
+}
+
+async function copyLink(link) {
+  try { await navigator.clipboard.writeText(link); toast('Invite link copied.'); }
+  catch { toast(link); }
+}
+
+render();
+</script>
+</body>
+</html>

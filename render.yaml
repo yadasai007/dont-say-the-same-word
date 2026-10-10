@@ -1,10 +1,9 @@
 services:
   - type: web
-    name: dont-say-the-same-word
-    runtime: static
-    buildCommand: echo "No build step"
-    staticPublishPath: .
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: no-cache
+    name: dont-say-the-same-word-online
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
