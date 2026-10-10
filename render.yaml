@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: dont-say-the-same-word
+    runtime: static
+    buildCommand: echo "No build step"
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
