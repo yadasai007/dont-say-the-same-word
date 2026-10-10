@@ -431,10 +431,8 @@ const screens = {
       mine = `
         <div class="field">
           <label for="ans">Your word (don't match the host)</label>
-          <div class="row">
-            <input id="ans" type="password" maxlength="40" autofocus autocomplete="off" onkeydown="if(event.key==='Enter')submitAnswer()">
-            <button class="secondary" onclick="toggleVis('ans', this)">Show</button>
-          </div>
+          <input id="ans" type="text" maxlength="40" autofocus autocomplete="off" autocapitalize="off" spellcheck="true"
+                 onkeydown="if(event.key==='Enter')submitAnswer()">
         </div>
         <button onclick="submitAnswer()" ${ui.busy ? 'disabled' : ''}>Lock in my answer</button>`;
     } else if (m && m.answering) {
